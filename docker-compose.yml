@@ -1,0 +1,15 @@
+services:
+  arangodb:
+    image: arangodb/arangodb:latest
+    container_name: arangodb
+    environment:
+      - ARANGO_ROOT_PASSWORD=your_password_here
+    ports:
+      - "8529:8529"
+    volumes:
+      - arango_data:/var/lib/arangodb3
+      - arango_apps:/var/lib/arangodb3-apps
+
+volumes:
+  arango_data:
+  arango_apps:

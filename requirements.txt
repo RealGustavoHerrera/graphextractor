@@ -1,0 +1,6 @@
+# python3 -m pip install -r requirements.txt
+
+google-cloud-language
+python-arango
+python-dotenv
+networkx  # for graph manipulation if needed
