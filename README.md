@@ -36,8 +36,11 @@ ARANGO_DB_NAME=[medical_knowledge]
 
 # Run the app
 
+This example will use data from: https://huggingface.co/datasets/AGBonnet/augmented-clinical-notes
+It will download it locally the first time, then use the local copy.
+
 ```sh
-% python3 src/main.py
+% python3 src/main.py [extractor] [sample index]
 ```
 
 # LangExtract using OpenAI

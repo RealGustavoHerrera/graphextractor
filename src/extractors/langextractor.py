@@ -2,7 +2,6 @@ from dotenv import load_dotenv
 import langextract as lx
 import os
 import textwrap
-from datetime import datetime, timezone 
 
 load_dotenv()
 
@@ -68,11 +67,6 @@ class LangExtractor():
         
         return self.result
 
-    def generateGraphData():
-        # TODO use self.result to create a graph data to save in ArangoDB
-        return
-        
-
     def displayEntitiesWithPosition(self):
         # Display entities with positions
         print(f"Entities with position: \n")
@@ -87,8 +81,8 @@ class LangExtractor():
 
     def saveResults(self, fileName):
         lx.io.save_annotated_documents([self.result], output_name=f"{fileName}.jsonl")
-        print(f"Results saved to {fileName}.jsonl")
-        return f"{fileName}.jsonl"
+        print(f"Results saved to test_output/{fileName}.jsonl")
+        return f"test_output/{fileName}.jsonl"
 
     def createHTMLResults(self, fileName):
         # Generate the interactive visualization from the file
