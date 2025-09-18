@@ -7,6 +7,7 @@ from arango.exceptions import DatabaseCreateError, CollectionCreateError
 from dotenv import load_dotenv
 
 load_dotenv()
+known_classes = ["medication", "diagnosis", "condition", "treatment"]
 
 class ProcessOutput():
     def __init__(self):
@@ -37,7 +38,7 @@ class ProcessOutput():
             except CollectionCreateError:
                 print(f"📝 Collection {coll_name} already exists")
 
-        print(f"output processor initialized...")
+        print(f"DB ready to receive data...")
 
     def ingestOutput(self, fileJsonl):
         # array to store the outcome
@@ -61,47 +62,106 @@ class ProcessOutput():
             graph_data['document']['_key'] = line['document_id']
             graph_data['document']['content'] = line['text']
 
+            print(f"processing document {graph_data['document']['_key']}")
+
             # add entities related back to the document
             for extraction in line['extractions']:
                 graph_data = self.addEntityToGraph(extraction, graph_data)
 
-            # we now can create relationships between entities
-            # addRelationshipsToGraph() 
+                # we now can create relationships between entities
+                if extraction['extraction_class'] == 'relationship':
+                    graph_data = self.addRelationshipsToGraph(extraction, graph_data) 
 
             outcome.append(graph_data)
 
-            # store the graph
-            self.db.collection('documents').insert(graph_data['document'])
+            #  Store the graph
 
-            entref = self.db.collection('entities')
-            for entity in graph_data['entities']:
-                entref.insert(entity)
+            ## Store the document (safe if processed twice)
+            self.db.collection('documents').insert(graph_data['document'], overwrite=True)
+
+            ## Store the entities (safe if already exist in the db)
+            if(graph_data['entities']):
+                aql = '''
+                FOR entity IN @entities
+                    UPSERT { _key: entity._key }
+                    INSERT entity
+                    UPDATE entity
+                    IN entities
+                '''
+                self.db.aql.execute(aql, bind_vars={'entities': graph_data['entities']})
+
+            ## Store the relationships (safe if already exist in the db)
+            if(graph_data['relationships']):
+                aql = '''
+                FOR relationship IN @relationships
+                    UPSERT {_key: relationship._key }
+                    INSERT MERGE (relationship, {count: 1})
+                    UPDATE ({ count: OLD.count + 1 })
+                    IN relationships
+                '''
+                self.db.aql.execute(aql, bind_vars={'relationships': graph_data['relationships']})
             
-            relref = self.db.collection('relationships')
-            for relation in graph_data['relationships']:
-                relref.insert(relation)
-        
         return outcome
 
     def addEntityToGraph(self, extraction, graph_data):
-        # TODO change this, entities should be shared across documents (no more rand unique key)
-        extraction['_key'] = graph_data['document']['_key']+"_"+str(randrange(0,9999))
-        relationship = {
+        if extraction['extraction_class'] == 'relationship':
+            # this is a relationship not an entity. Do nothing.
+            return graph_data
+        
+        if extraction['extraction_class'] in known_classes:
+            # if the class is known (ie. "medication", "diagnosis", "condition", "treatment") the key is the extraction_text
+            extraction['_key'] = extraction["extraction_text"].lower().replace(" ","_")
+            
+        else:
+            # otherwise, it's a unique entity (ie symptoms, other)
+            # TODO do demographics
+            extraction['_key'] = extraction["extraction_class"]+"_"+str(randrange(0,9999))        
+            
+        if any(entity['_key'] == extraction['_key'] for entity in graph_data['entities']):
+            print(f"found entity {extraction['_key']} duplicated, skipping insertion of entity")
+            return graph_data
+
+        print(f"inserting entity {extraction['_key']} with rel to document {graph_data['document']['_key']}")
+
+        # Insert relationship entity - document
+        ent_rel_doc = {
                         '_from': f"documents/{graph_data['document']['_key']}",
                         '_to': f"entities/{extraction['_key']}",
                         'relationship_type': 'extraction',
-                        'confidence': extraction['alignment_status']
+                        'char_interval': extraction['char_interval'],
+                        'alignment_status':  extraction['alignment_status'],
+                        'confidence': self.confidenceFromAlignment(extraction['alignment_status'])
                     }
         graph_data['entities'].append(extraction)
-        graph_data['relationships'].append(relationship)
+        graph_data['relationships'].append(ent_rel_doc)
         return graph_data
 
-    def addRelationshipsToGraph(self):    
-        # TODO link the entities among themselves
-        # this will require some unique key for entities
+    def addRelationshipsToGraph(self, extraction, graph_data):    
+        # link the entities among themselves
+        if extraction['extraction_class'] != 'relationship':
+            print("this extraction is not a relationship")
+            return graph_data
 
-        pass
+        entity1_key = extraction['attributes']['entity_1'].lower().replace(" ","_")
+        entity2_key = extraction['attributes']['entity_2'].lower().replace(" ","_")
 
+        # Create order-independent key (alphabetical sorting)
+        sorted_entities = sorted([entity1_key, entity2_key])
+        relationship_key = f"{sorted_entities[0]}_assoc_{sorted_entities[1]}"
+
+        print(f"creating relationship between {entity1_key} and {entity2_key}")
+
+        # Insert relationship entity - entity
+        ent_rel_ent = {
+                        '_key': relationship_key,
+                        '_from': f"entities/{entity1_key}",
+                        '_to': f"entities/{entity2_key}",
+                        'relationship_type': 'associated',
+                        'alignment_status':  extraction['alignment_status'],
+                        'confidence': self.confidenceFromAlignment(extraction['alignment_status'])
+                    }
+        graph_data['relationships'].append(ent_rel_ent)
+        return graph_data
 
     def load_jsonl_as_dicts(self, file_path):
         data = []
@@ -111,3 +171,14 @@ class ProcessOutput():
                     data.append(json.loads(line.strip()))
         
         return data
+
+    def confidenceFromAlignment(self, alignment_status):
+        match alignment_status:
+            case 'match_exact':
+                return 1
+            case 'match_fuzzy':
+                return 0.6
+            case 'match_lesser':
+                return 0.3
+            case _:
+                return 0

@@ -47,9 +47,9 @@ extractor.setInputText(input_text)
 result =  extractor.extract()
 
 # save them
-fileName = 'sample_output_meds'
+fileName = 'sample_output_' + args.type + str(args.record)
 saved = extractor.saveResults(fileName)
-extractor.createHTMLResults("sample_view_meds")
+extractor.createHTMLResults("sample_view_" + args.type + str(args.record))
 
 # now to the database
 print(f"attempt to save on database...")

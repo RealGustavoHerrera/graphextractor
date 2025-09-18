@@ -44,6 +44,7 @@ class LangExtractor():
             print(f"We need prompt, input text and examples to do an extraction")
             return False
         
+        print(f"extractor will commence lang extract...")
         if self.model == 'GEMINI':
             self.result = lx.extract(
                 text_or_documents=self.input_text,
@@ -64,7 +65,7 @@ class LangExtractor():
         else:
             print(f"Some error has occurred. the model -- {self.model} -- is invalid")
             return False
-        
+        print(f"extraction completed...")
         return self.result
 
     def displayEntitiesWithPosition(self):

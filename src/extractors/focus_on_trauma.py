@@ -7,13 +7,10 @@ class ExtractorFocusOnTrauma(LangExtractor):
     def __init__(self, model):
         super().__init__(model)
         self.prompt = textwrap.dedent("""\
-                        Extract patient, diagnosis and treatment information including:
-                        patient age, sex, 
-                        patient symptoms, patient conditions and causes, 
-                        patient diagnosis, methods and outcomes
-                        patient medication, dosage, frequency and duration.
-                        surgical interventions or treatments
-                        Focus on the relationship between symptons, conditions, medication and treatment""")
+                        Extract patient demographics (age, sex),
+                        conditions, causes and treatment,
+                        medication, dosage, frequency and duration.
+                        Focus on the relationship between conditions, medication and treatment""")
         
         # Sample 1 
         self.examples = [
@@ -42,36 +39,23 @@ class ExtractorFocusOnTrauma(LangExtractor):
                         """
                     ),
                     extractions=[
-                        lx.data.Extraction(extraction_class="age", extraction_text="56 years old", attributes={"years":"56"}),
-                        lx.data.Extraction(extraction_class="sex", extraction_text="man", attributes={"sex": "male"}),
+                        lx.data.Extraction(extraction_class="demographics", extraction_text="56 years old", attributes={"years":"56"}),
+                        lx.data.Extraction(extraction_class="demographics", extraction_text="man", attributes={"sex": "male"}),
 
-                        lx.data.Extraction(extraction_class="symptoms", extraction_text="dump pain on the right back and a swelling right in this place for several weeks", 
-                                            attributes={"diagnosis":"", "duration": "several weeks", "since" : "ongoing", "related_condition":"sclerosing xanthofibroma"}),
+                        lx.data.Extraction(extraction_class="condition", extraction_text="sclerosing xanthofibroma", attributes={"cause":"trauma"}),
 
-                        lx.data.Extraction(extraction_class="diagnostic_findings", extraction_text="simple fracture of the 9th right rib without any other consequences", 
-                                        attributes={"method":"interview", "related_condition":"thoracic trauma at work one year ago"}),
-                        lx.data.Extraction(extraction_class="diagnostic_findings", extraction_text="X-ray was seen a shadow in the lower part of the right hemithorax", 
-                                        attributes={"method":"X-ray", "related_condition":"sclerosing xanthofibroma"}),
-                        lx.data.Extraction(extraction_class="diagnostic_findings", extraction_text="CT-scan of the thorax that revealed a tumor of the thoracic wall in the right hemithorax that measured 8 \u00d7 4 cm and had a heterogeneous density inside of it", 
-                                        attributes={"method":"CT-scan", "related_condition":"sclerosing xanthofibroma"}),
-                        lx.data.Extraction(extraction_class="diagnostic_findings", extraction_text=" The tumor had involved and destructed the 9th rib and was lying even in two adjacent intercostal spaces, but without involving the lung and muscular layers", 
-                                        attributes={"method":"CT-scan", "related_condition":"sclerosing xanthofibroma"}),
-                        lx.data.Extraction(extraction_class="diagnostic_findings", extraction_text="CT-scan were seen micronodular infiltrations of both lungs with diameters up to 5 mm and only one nodule in lower lobe of the right lung with diameter almost 1 cm ().", 
-                                        attributes={"method":"CT-scan", "related_condition":"sclerosing xanthofibroma"}),
-                        lx.data.Extraction(extraction_class="diagnostic_findings", extraction_text="The mediastinum was without enlarged lymph nodes and no other lesion was seen in adjacent organs.", 
-                                        attributes={"method":"CT-scan", "related_condition":"sclerosing xanthofibroma"}),
-                        lx.data.Extraction(extraction_class="diagnostic_findings", extraction_text="None of these samples resulted positive (no malignant cells found) after frozen biopsy", 
-                                        attributes={"method":"biopsy", "related_condition":"sclerosing xanthofibroma"}),
-
-                        lx.data.Extraction(extraction_class="conditions", extraction_text="sclerosing xanthofibroma", 
-                                        attributes={"age":"56","cause":"trauma"}),
+                        lx.data.Extraction(extraction_class='relationship', extraction_text="performing an oncologic resection of the tumor of the thoracic wall", 
+                                           attributes={ "entity_1" : "sclerosing xanthofibroma", "entity_2" : "oncologic resection of the tumor"}),
+                        lx.data.Extraction(extraction_class='relationship', extraction_text="After that, we have performed a plastic procedure with polypropylene mesh in double layers to correct the defect", 
+                                           attributes={ "entity_1" : "sclerosing xanthofibroma", "entity_2" : "plastic procedure"}),
                         
-                        lx.data.Extraction(extraction_class="surgical_procedure", extraction_text="oncologic resection of the tumor of the thoracic wall.",
-                                        attributes = {"part":"thoracic wall", "outcome":"very good", "related_condition":"sclerosing xanthofibroma"}),
-                        lx.data.Extraction(extraction_class="surgical_procedure", extraction_text="plastic procedure with polypropylene mesh in double layers to correct the defect.",
-                                        attributes = {"part":"thoracic wall", "outcome":"very good", "related_condition":"sclerosing xanthofibroma"}),
+                        lx.data.Extraction(extraction_class="treatment", extraction_text="oncologic resection of the tumor",
+                                        attributes = {"type":"surgical procedure", "part":"thoracic wall", "outcome":"very good", "related_condition":"sclerosing xanthofibroma"}),
+                        lx.data.Extraction(extraction_class="treatment", extraction_text="plastic procedure",
+                                        attributes = {"type":"surgical procedure", "part":"thoracic wall", "outcome":"very good", "related_condition":"sclerosing xanthofibroma"}),
                     ],
                 )
-            
-            
             ]
+
+    def getExamples(self):
+        return self.examples
